@@ -1,6 +1,6 @@
 {
   "name": "threecontext",
-  "version": "0.1.14",
+  "version": "0.1.0",
   "description": "A starter for ThreeJS bundled with Rollup",
   "repository": "jonathanlurie/threecontext",
   "moduleName": "threecontext",
@@ -12,7 +12,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "rollup -c",
     "dev": "serve -l 7654 . & rollup -w -c",
-    "doc": "documentation build src/*.js -o ./doc/ -f html; documentation build src/*.js -f md > documentation.md",
+    "doc": "documentation build src/*.js -o ./doc/ --sort-order alpha  -f html",
     "lint": "eslint src/*.js"
   },
   "author": "Jonathan Lurie",

@@ -1,4 +1,7 @@
+ import * as THREE from 'three'
+
 /**
+ * @private
  * @author qiao / https://github.com/qiao
  * @author mrdoob / http://mrdoob.com
  * @author alteredq / http://alteredqualia.com/
@@ -6,7 +9,7 @@
  * @author erich666 / http://erichaines.com
  */
 
- import * as THREE from 'three'
+
 
 
 // This set of controls performs orbiting, dollying (zooming), and panning.

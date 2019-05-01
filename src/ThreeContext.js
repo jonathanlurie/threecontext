@@ -1,73 +1,95 @@
 import * as THREE from 'three'
 import TrackballControls from './thirdparty/TrackballControls'
+import OrbitControls from './thirdparty/OrbitControls'
 import EventManager from '@jonathanlurie/eventmanager'
+import { getOption } from './Tools'
 
 
 /**
- * ThreeContext creates a WebGL context using THREEjs. It also handle mouse control.
- * An event can be associated to a ThreeContext instance: `onRaycast` with the method
- * `.on("onRaycast", function(s){...})` where `s` is the section object being raycasted.
+ * ThreeContext creates a WebGL context using Threejs. It also handle mouse control with two possible logics (orbit or trackball)
+ * An event can be associated to a ThreeContext instance: `raycast` with the method
+ * `.on("raycast", function(hits){...})` where `hits` is the object list being raycasted.
  */
 export class ThreeContext extends EventManager {
   /**
-   * @param {DONObject} divObj - the div object as a DOM element.
-   * Will be used to host the WebGL context
-   * created by THREE
+   * Constuctor
+   * @param {DOMObject} div - the div object as a DOM element.
+   * @param {Object} options - the options parameters
+   * @param {boolean}   options.webgl2 - enable WebGL2 if `true` (default: `false`)
+   * @param {boolean}   options.embedLight - embeds the light into the camera if `true` (default: `false`)
+   * @param {boolean}   options.antialias - enables antialias if `true` (default: `true`)
+   * @param {boolean}   options.showAxisHelper - show the axis helper at (0, 0, 0) when `true` (default: `false`)
+   * @param {number}    options.axisHelperSize - length of the the 3 axes of the helper (default: `100`)
+   * @param {Object}    options.cameraPosition - init position of the camera (default: `{x: 0, y: 0, z: 100}`)
+   * @param {Object}    options.cameraLookAt - init position to look at (default: `{x: 0, y: 0, z: 0}`)
+   * @param {string}    options.controlType - `'orbit'`: locked poles or `'trackball'`: free rotations (default: `'trackball'`)
+   * @param {boolean}   options.raycastOnDoubleClick - perform a raycast when double clicking (default: `true`). If some object from the scene are raycasted, the event 'raycast' is emitted with the list of intersected object from the scene as argument.
    */
-  constructor(divObj = null, useWebGL2=true) {
+  constructor(div = null, options) {
     super()
     const that = this
 
-    if (!divObj) {
-      console.error('The ThreeContext needs a div object')
-      return
+    if (!div) {
+      throw new Error('The ThreeContext needs a div object')
     }
 
     this._requestFrameId = null
 
-    // init camera
-    this._camera = new THREE.PerspectiveCamera(27, divObj.clientWidth / divObj.clientHeight, 1, 50000)
-    this._camera.position.x = 5000
-    this._camera.position.y = 5000
-    this._camera.position.z = 5000
-
-
     // init scene
     this._scene = new THREE.Scene()
-    this._scene.add(new THREE.AmbientLight(0x444444))
 
-    let axesHelper = new THREE.AxesHelper( 3000 )
-    //this._scene.add( axesHelper )
+    // init camera
+    this._camera = new THREE.PerspectiveCamera(27, div.clientWidth / div.clientHeight, 1, 50000)
+    let camPos = getOption(options, 'cameraPosition', {x: 0, y: 0, z: 100})
+    this._camera.position.x = camPos.x
+    this._camera.position.y = camPos.y
+    this._camera.position.z = camPos.z
+    this._scene.add(this._camera)
 
     // adding some light
-    const light1 = new THREE.DirectionalLight(0xffffff, 0.8)
-    // light1.position.set(0, 1000, 0)
-    // adding the light to the camera ensure a constant lightin of the model
-    this._scene.add(this._camera)
-    this._camera.add(light1)
+    this._ambiantLight = new THREE.AmbientLight(0x444444)
+    this._scene.add(this._ambiantLight)
+    this._directionalLight = new THREE.DirectionalLight(0xffffff, 0.8)
+    if(getOption(options, 'embedLight', true)){
+      this._camera.add(this._directionalLight)
+    }else{
+      this._scene.add(this._directionalLight)
+    }
 
-    if(useWebGL2){
+    // add some axis helper
+    this._axesHelper = new THREE.AxesHelper( getOption(options, 'axisHelperSize', 100) )
+    this._axesHelper.visible = getOption(options, 'showAxisHelper', true)
+    this._scene.add(this._axesHelper)
+
+    // init the renderer
+    this._renderer = null
+    if(getOption(options, 'webgl2', false)){
       let canvas = document.createElement('canvas')
-      divObj.appendChild(canvas)
-      let context = canvas.getContext('webgl2')
+      div.appendChild(canvas)
+      let context = canvas.getContext('webgl2', {
+        preserveDrawingBuffer: true,
+        alpha: true,
+        antialias: getOption(options, 'antialias', true),
+      })
 
       this._renderer = new THREE.WebGLRenderer({
-        antialias: true,
-        alpha: true,
-        preserveDrawingBuffer: true,
         canvas: canvas,
         context: context
       })
     } else {
-      this._renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true })
+      this._renderer = new THREE.WebGLRenderer({
+        antialias: getOption(options, 'antialias', true),
+        alpha: true,
+        preserveDrawingBuffer: true
+      })
     }
 
     this._renderer.setClearColor(0xffffff, 0)
     this._renderer.setPixelRatio(window.devicePixelRatio)
-    this._renderer.setSize(divObj.clientWidth, divObj.clientHeight)
+    this._renderer.setSize(div.clientWidth, div.clientHeight)
     this._renderer.gammaInput = true
     this._renderer.gammaOutput = true
-    divObj.appendChild(this._renderer.domElement)
+    div.appendChild(this._renderer.domElement)
 
     // all the necessary for raycasting
     this._raycaster = new THREE.Raycaster()
@@ -83,29 +105,85 @@ export class ThreeContext extends EventManager {
     }
 
     this._renderer.domElement.addEventListener('mousemove', onMouseMove, false)
-    this._renderer.domElement.addEventListener('dblclick', () => {
-      this.performRaycast(true) // true: throw event
-    }, false)
 
+    if(getOption(options, 'raycastOnDoubleClick', false)){
+      this._renderer.domElement.addEventListener('dblclick', () => {
+        this.performRaycast({
+          parent: that._scene,
+          emitEvent: true
+        })
+      }, false)
+    }
 
 
     // mouse controls
-    this._controls = new TrackballControls(this._camera, this._renderer.domElement)
-    this._controls.rotateSpeed = 3
+    let controlType = getOption(options, 'controlType', 'trackball')
+    this._controls = null
+    if(controlType === 'trackball'){
+      this._controls = new TrackballControls(this._camera, this._renderer.domElement)
+      this._controls.rotateSpeed = 3
+    } else if(controlType === 'orbit'){
+      this._controls = new OrbitControls(this._camera, this._renderer.domElement)
+    }
     //this._controls.addEventListener('change', this.render.bind(this))
 
+    let cameraLookAt = getOption(options, 'cameraLookAt', {x: 0, y: 0, z: 0})
+    this.lookAtxyz(cameraLookAt.x, cameraLookAt.y, cameraLookAt.z)
+
     window.addEventListener('resize', () => {
-      that._camera.aspect = divObj.clientWidth / divObj.clientHeight
+      that._camera.aspect = div.clientWidth / div.clientHeight
       that._camera.updateProjectionMatrix()
-      that._renderer.setSize(divObj.clientWidth, divObj.clientHeight)
-      that._controls.handleResize()
-      //that.render()
+      that._renderer.setSize(div.clientWidth, div.clientHeight)
+
+      // this actually applies only to trackball control
+      try{
+        that._controls.handleResize()
+      } catch(e){}
     }, false)
 
-    //this.render()
     this._animate()
   }
 
+
+  /**
+   * Get the default AmbientLight
+   * @return {THREE.AmbientLight}
+   */
+  getAmbientLight(){
+    return this._ambiantLight
+  }
+
+
+  /**
+   * Get the default directional light
+   * @return {THREE.DirectionalLight}
+   */
+  getDirectionalLight(){
+    return this._directionalLight
+  }
+
+
+  /**
+   * Adds a Thorus knot to the scene.
+   * @return {THREE.Mesh}
+   */
+  addSampleShape() {
+    const geometry = new THREE.TorusKnotBufferGeometry(10, 3, 100, 16)
+    const material = new THREE.MeshPhongMaterial({ color: Math.ceil(Math.random() * 0xffff00) })
+    const torusKnot = new THREE.Mesh(geometry, material)
+    this._scene.add(torusKnot)
+    this.render()
+    return torusKnot
+  }
+
+
+  /**
+   * Get the axes helper
+   * @return {THREE.Mesh}
+   */
+  getAxesHelper(){
+    return this._axesHelper
+  }
 
   /**
    * Get the scene, mainly so that we can externalize things from this file
@@ -189,20 +267,25 @@ export class ThreeContext extends EventManager {
 
   /**
    * Throw a ray from the camera to the pointer, potentially intersect some element.
-   * Can emit the event `onRaycast` with the section instance as argument
-   * @param {boolean} throwEvent - true: throw the event 'onRaycast'.
+   * Can emit the event `raycast` with the section instance as argument
+   * @param {Object}  options - the option object
+   * @param {boolean} options.emitEvent - Throw the event `'raycast'` with the intersected objects in arguments (default: `false`, the result is returned)
+   * @param {THREE.Object3D} options.parent - the raycast will be performed recursively on all the children of this object (default: `this._scene`)
    * @return {array|null} an array of interections or null if none
    */
-  performRaycast(throwEvent=false) {
+  performRaycast(options) {
+    let emitEvent = getOption(options, 'emitEvent', false)
+    let parent = getOption(options, 'parent', this._scene)
+
     // update the picking ray with the camera and mouse position
     this._raycaster.setFromCamera(this._raycastMouse, this._camera)
 
     // calculate objects intersecting the picking ray
-    const intersects = this._raycaster.intersectObject(this._scene, true)
+    const intersects = this._raycaster.intersectObject(parent, true)
 
     if (intersects.length) {
-      if(throwEvent){
-        this.emit('onRaycast', [intersects])
+      if(emitEvent){
+        this.emit('raycast', [intersects])
       }
       return intersects
     }
@@ -210,12 +293,10 @@ export class ThreeContext extends EventManager {
   }
 
 
-
-
   /**
-   * Get the png image data as base64, in order to later, export as a file
+   * Get the png image data as base64, in order to later display it in a <img> markup
    */
-  getSnapshotData() {
+  getScreenshot() {
     const strMime = 'image/png'
     // let strDownloadMime = "image/octet-stream"
     const imgData = this._renderer.domElement.toDataURL(strMime)

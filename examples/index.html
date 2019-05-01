@@ -13,28 +13,6 @@
       font-weight: 100;
     }
 
-    #info {
-      position: absolute;
-      background: #FFFFFF88;
-      color: #000;
-      z-index: 1;
-      padding: 5px;
-    }
-
-    #info code {
-      font-size: 15px;
-      background: #00000014;
-      padding: 3px 4px;
-      border-radius: 3px;
-      border-bottom: solid 2px #00000061;
-      color: #000000a1;
-    }
-
-    .large-text {
-      font-size: 100px;
-      font-weight: 900;
-    }
-
     #threedeediv {
       position: absolute;
       top: 0;
@@ -47,86 +25,80 @@
       background: #fff;
     }
 
-    .staticSliderWrapper {
+    #screenshot-zone {
       position: absolute;
       bottom: 0;
-      width: 100vw;
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      grid-gap: 5px;
-      grid-auto-rows: 7vh;
     }
 
-    .orangy {
-      background-color: #ffbf88;
-    }
-
-    .green {
-      background-color: #82ffa2;
-    }
-
-    .orangy-text {
-      color: #4de2c1;
-    }
-
-    .green-text {
-      color: #cd92f9;
-    }
-
-    .staticSlider {
-      text-align: center;
+    #take-screenshot-bt {
+      background: #7fffd4;
+      border: #07ce8b 5px solid;
+      padding: 20px;
       cursor: pointer;
-      transition: 0.3s;
-      line-height: 7vh;
       user-select: none;
-      font-size: 16px;
-      color: #FFF;
     }
 
-    .fas {
-      pointer-events: none;
+    #take-screenshot-bt:hover{
+
     }
 
-    .staticSlider:hover {
-      opacity: 0.3;
+    #screenshot-img {
+      width: 200px;
     }
 
   </style>
 
+  <script src="../dist/threecontext.js"></script>
+
 </head>
 <body>
-  <div id="info">
-    Press <code>Ctrl</code> and hover on the volume to display the voxel value.
-  </div>
-  <div id="threedeediv" class="card"></div>
+  <div id="threedeediv"></div>
+  <div id="screenshot-zone">
+    <img id="screenshot-img" alt=""></img>
+    <div id="take-screenshot-bt">Take screenshot!</div>
 
-  <div class="staticSliderWrapper">
-    <div id="normalTranslate" class="staticSlider orangy" method="translateAlongNormal" ratio="1">
-      <i class="fas fa-arrow-left smaller-text"></i> slice translate <i class="fas fa-arrow-right smaller-text"></i>
-    </div>
-    <div id="upTranslate" class="staticSlider orangy" method="translateAlongUp" ratio="1">
-      <i class="fas fa-arrow-left smaller-text"></i> up/down translate <i class="fas fa-arrow-right smaller-text"></i>
-    </div>
-    <div id="rightTranslate" class="staticSlider orangy" method="translateAlongRight" ratio="1">
-      <i class="fas fa-arrow-left smaller-text"></i> right/left translate <i class="fas fa-arrow-right smaller-text"></i>
-    </div>
-
-    <div id="normalRotate" class="staticSlider green" method="rotateOnNormal" ratio="0.01">
-      <i class="fas fa-arrow-left smaller-text"></i> slice rotate <i class="fas fa-arrow-right smaller-text"></i>
-    </div>
-    <div id="upRotate" class="staticSlider green" method="rotateOnUp" ratio="0.01">
-      <i class="fas fa-arrow-left smaller-text"></i> up/down rotate <i class="fas fa-arrow-right smaller-text"></i>
-    </div>
-    <div id="rightRotate" class="staticSlider green" method="rotateOnRight" ratio="0.01">
-      <i class="fas fa-arrow-left smaller-text"></i> right/left rotate <i class="fas fa-arrow-right smaller-text"></i>
-    </div>
   </div>
 
+  <script>
+
+    let options = {
+      webgl2: true,            // enable WebGL2 if `true` (default: false)
+      embedLight: false,       // embeds the light into the camera if true (default: false)
+      antialias: false,        // enables antialias if true (default: true)
+      showAxisHelper: true,    // shows the axis helper at (0, 0, 0) when true (default: false)
+      axisHelperSize: 100,     // length of the the 3 axes of the helper (default: 100)
+      controlType: 'orbit',    // 'orbit': locked poles or 'trackball': free rotations (default: 'trackball')
+      cameraPosition: {x: 0, y:0, z: 1000}, // inits position of the camera (default: {x: 0, y: 0, z: 100})
+      cameraLookAt: {x: 0, y: 0, z: 0},     // inits position to look at (default: {x: 0, y: 0, z: 0})
+      raycastOnDoubleClick: true,           // performs a raycast when double clicking (default: `true`).
+                                            // If some object from the scene are raycasted, the event 'onRaycast'
+                                            // is emitted with the list of intersected object from the scene as argument.
+    }
+
+    let threedeediv = document.getElementById('threedeediv')
+    let tc = new threecontext(threedeediv, options)
+    tc.addSampleShape()
+
+    tc.on('raycast', function(hits){
+      hits.forEach(hit => {
+        console.log(`Distance: ${hit.distance}`)
+        console.log(`At position [${hit.point.x}, ${hit.point.y}, ${hit.point.z}]`)
+        console.log('Object:', hit.object)
+      })
+    })
 
 
-  <script src="../dist/threeoctreeplane.js"></script>
-  <script src="./js/dat.gui.js"></script>
-  <script src="./js/core.js"></script>
+    let screenshotBt = document.getElementById('take-screenshot-bt')
+    let screenshotImage = document.getElementById('screenshot-img')
+
+    screenshotBt.addEventListener('mouseup', function(e){
+      screenshotImage.setAttribute('src', tc.getScreenshot())
+    })
+
+
+
+  </script>
+
 
 </body>
 </html>
