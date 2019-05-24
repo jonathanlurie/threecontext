@@ -1,4 +1,4 @@
-import { Scene, PerspectiveCamera, AmbientLight, DirectionalLight, AxesHelper, WebGLRenderer, Raycaster, Vector2, TorusKnotBufferGeometry, MeshPhongMaterial, Mesh, Vector3, Quaternion, EventDispatcher, MOUSE, Spherical } from 'three';
+import { Scene, PerspectiveCamera, AmbientLight, DirectionalLight, AxesHelper, WebGLRenderer, Raycaster, Vector2, TorusKnotBufferGeometry, MeshPhongMaterial, Mesh, SphereBufferGeometry, MeshBasicMaterial, Vector3, Quaternion, EventDispatcher, MOUSE, Spherical } from 'three';
 import EventManager from '@jonathanlurie/eventmanager';
 
 /*
@@ -1764,9 +1764,23 @@ class ThreeContext extends EventManager {
     const geometry = new TorusKnotBufferGeometry(10, 3, 100, 16);
     const material = new MeshPhongMaterial({ color: Math.ceil(Math.random() * 0xffff00) });
     const torusKnot = new Mesh(geometry, material);
-    this._scene.add(torusKnot);
-    this.render();
+    this.getScene().add(torusKnot);
+    // this.render()
+
+    // let geometry2 = new THREE.SphereBufferGeometry( 10, 32, 32 );
+    // let material2 = new THREE.MeshBasicMaterial( {color: 0xffff00} );
+    // let mesh2 = new THREE.Mesh( geometry2, material2 );
+    // this._scene.add(mesh2)
+
     return torusKnot
+  }
+
+
+  addSampleShape2(){
+    let geometry = new SphereBufferGeometry( 10, 32, 32 );
+    let material = new MeshBasicMaterial( {color: 0xffff00} );
+    let mesh = new Mesh( geometry, material );
+    this.getScene().add(mesh);
   }
 
 
